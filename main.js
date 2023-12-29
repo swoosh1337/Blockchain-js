@@ -1,11 +1,17 @@
 const SHA256 = require('crypto-js/sha256')
 
+class Transaction {
+    constructor(fromAddress,toAddress,amount){
+        this.fromAddress = fromAddress
+        this.toAddress = toAddress
+        this.amount = amount
+    }
+}
+
 class Block {
-    constructor(index,timestamp,data,previousHash=''){
-        this.index = index
+    constructor(timestamp,transactions,previousHash=''){
+        this.transactions = transactions
         this.timestamp = timestamp
-        this.data = data
-        this.difficulty = 5
         this.previousHash = previousHash
         this.hash = this.calculateHash()
         this.nonce = 0
@@ -17,7 +23,7 @@ class Block {
 
     mineBlock(difficulty){
         console.log("mining block...")
-        while(this.hash.substring(0,this.difficulty) !== Array(this.difficulty + 1).join("0")){
+        while(this.hash.substring(0,difficulty) !== Array(difficulty + 1).join("0")){
             this.nonce++
             this.hash = this.calculateHash()
         }
@@ -28,11 +34,14 @@ class Block {
 
 class BlockChain {
     constructor(){
+        this.difficulty = 4
         this.chain = [this.createGenesisBlock()]
+        this.pendingTransactions = []
+        this.reward = 100
     }
 
     createGenesisBlock(){
-        return new Block(0,'12/29/2023','Genesis Block','0')
+        return new Block('12/29/2023','Genesis Block','0')
     }
 
     getLatestBlock(){
@@ -58,13 +67,42 @@ class BlockChain {
         }
         return true
     }
+
+    minePendingTransactions(minerAddress){
+        let block = new Block(Date.now(),this.pendingTransactions)
+        block.mineBlock(this.difficulty)
+        this.chain.push(block)
+        this.pendingTransactions = [
+            new Transaction(null,minerAddress,this.reward)
+        ]
+    }
+
+    createTransaction(transaction){
+        this.pendingTransactions.push(transaction)
+    }
+
+    getBalanceOfAddress(address){
+        let balance = 0
+        for(const block of this.chain){
+            for(const trans of block.transactions){
+                if(trans.fromAddress === address){
+                    balance -= trans.amount
+                }
+                if(trans.toAddress === address){
+                    balance += trans.amount
+                }
+            }
+        }
+        return balance
+    }
 }
 
 let blockchain = new BlockChain()
-blockchain.addBlock(new Block(1,'12/29/2023',{amount:4}))
-blockchain.addBlock(new Block(2,'12/29/2023',{amount:10}))
-blockchain.addBlock(new Block(3,'12/29/2023',{amount:15}))
-blockchain.addBlock(new Block(4,'12/29/2023',{amount:20}))
-blockchain.addBlock(new Block(5,'12/29/2023',{amount:20}))
+blockchain.createTransaction(new Transaction('address1','address2',100))
+blockchain.createTransaction(new Transaction('address2','address1',50))
 
-console.log(blockchain)
+console.log("starting the mining...")
+blockchain.minePendingTransactions('satoshi address')
+console.log(`Balance of satoshi address is ${blockchain.getBalanceOfAddress('satoshi address')}`)
+blockchain.minePendingTransactions('satoshi address')
+console.log(`Balance of satoshi address is ${blockchain.getBalanceOfAddress('satoshi address')}`)
